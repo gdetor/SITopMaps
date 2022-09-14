@@ -137,11 +137,8 @@ if __name__ == '__main__':
     # --------------------------------------------
     R = np.zeros((Rn*Rn, 2))
     R[:, 0], R[:, 1] = grid(Rn, noise=R_noise)
-    np.save('gridxcoord', R[:, 0])
-    np.save('gridycoord', R[:, 1])
-
-    plt.plot()
-    plt.show()
+    np.save('./data/gridxcoord', R[:, 0])
+    np.save('./data/gridycoord', R[:, 1])
 
     # Samples generation
     # --------------------------------------------
@@ -163,15 +160,15 @@ if __name__ == '__main__':
 
         # Computes field input accordingly
         D = ((np.abs(W - stimulus)).sum(axis=-1))/float(Rn*Rn)
-        I = (1.0 - D.reshape(n, n)) * alpha
+        Input = (1.0 - D.reshape(n, n)) * alpha
 
         # Field simulation until convergence
-        for l in range(int(T/dt)):
+        for _ in range(int(T/dt)):
             V = np.maximum(U, 0.0)
             Z = rfft2(V)
             Le = irfft2(Z * We_fft, (n, n)).real
             Li = irfft2(Z * Wi_fft, (n, n)).real
-            U += (-U + (Le - Li) + I) / tau * dt
+            U += (-U + (Le - Li) + Input) / tau * dt
 
         # plot_activity(V)
 
@@ -179,22 +176,22 @@ if __name__ == '__main__':
         # --------
         W -= lrate * (Le.ravel() * (W - stimulus).T).T
 
-        if e % 50 == 0:
-            print e
+        if e % 1000 == 0:
+            print("Epoch %d" % e)
 
         # Field activity reset
         # --------------------
         U = np.random.uniform(0.00, 0.01, (n, n))
         V = np.random.uniform(0.00, 0.01, (n, n))
 
-    np.save('weights', W)
+    np.save('./data/weights', W)
 
     m = Rn
     plt.figure(figsize=(10, 10))
     ax = plt.subplot(111, aspect=1)
     R = np.zeros((n*m, n*m))
-    for j in xrange(n):
-        for i in xrange(n):
+    for j in range(n):
+        for i in range(n):
             R[j*m:(j+1)*m, i*m:(i+1)*m] = W[j*n+i].reshape(m, m)
     im = plt.imshow(R, interpolation='nearest', cmap=plt.cm.bone_r,
                     vmin=0, vmax=1)

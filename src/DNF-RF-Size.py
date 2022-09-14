@@ -59,7 +59,7 @@ def rf_size(Input, net_size, resolution):
     """
     size = np.zeros((net_size*net_size,))
     coms = np.zeros((net_size*net_size, 2))
-    I = np.zeros((net_size, net_size, resolution, resolution))
+    In = np.zeros((net_size, net_size, resolution, resolution))
     R = np.zeros((net_size*resolution, net_size*resolution))
     Z = np.zeros((resolution, resolution))
 
@@ -67,21 +67,24 @@ def rf_size(Input, net_size, resolution):
 
     X, Y = np.meshgrid(np.arange(Z.shape[0]), np.arange(Z.shape[1]))
 
-    count_roi, count_nroi, count_tot = 0, 0, 0
+    # count_roi, count_nroi, count_tot = 0, 0, 0
     for i in range(net_size):
         for j in range(net_size):
-            I[i, j, ...] = Input[i::net_size, j::net_size]
-            Z = I[i, j, ...]
+            In[i, j, ...] = Input[i::net_size, j::net_size]
+            Z = In[i, j, ...]
             R[i*resolution:(i+1)*resolution, j*resolution:(j+1)*resolution] = Z
             size[i*net_size+j] = area_of_activation(Z) * scale
 
-            d = np.unravel_index(Z.argmax(), Z.shape)
-            Z = np.roll(Z, Z.shape[0]/2-d[0], axis=0)
-            Z = np.roll(Z, Z.shape[1]/2-d[1], axis=1)
+            z_half_shape0 = int(Z.shape[0] // 2)
+            z_half_shape1 = int(Z.shape[0] // 2)
 
-            xc = (((Z*Y).sum() / Z.sum() - Z.shape[0]/2 +
+            d = np.unravel_index(Z.argmax(), Z.shape)
+            Z = np.roll(Z, z_half_shape0 - d[0], axis=0)
+            Z = np.roll(Z, z_half_shape1 - d[1], axis=1)
+
+            xc = ((((Z*Y).sum() / Z.sum() - z_half_shape0) +
                    d[0])/float(Z.shape[0]))
-            yc = (((Z*X).sum() / Z.sum() - Z.shape[1]/2 +
+            yc = ((((Z*X).sum() / Z.sum() - z_half_shape1) +
                    d[1])/float(Z.shape[1]))
 
             coms[i*net_size+j, 0] = (xc + 1.0) % 1
@@ -113,12 +116,12 @@ if __name__ == '__main__':
     net_size = 32
     resolution = 64
 
-    Rx = np.load('gridxcoord.npy')
-    Ry = np.load('gridycoord.npy')
-    O = np.load('model_response_64.npy')
-    C, R, size = rf_size(O, net_size, resolution)
+    Rx = np.load('./data/gridxcoord.npy')
+    Ry = np.load('./data/gridycoord.npy')
+    response = np.load('./data/model_response_64.npy')
+    C, R, size = rf_size(response, net_size, resolution)
 
-    print sum(np.isnan(C[..., 0]))
+    print(sum(np.isnan(C[..., 0])))
 
     plt.figure(figsize=(9, 9))
     plot_rfs(size, C, Rx, Ry)

@@ -79,7 +79,7 @@ def area_of_activity(data):
     return sum(1 for i in data.flatten() if i > 0.0)
 
 
-def dnfsom_activity(n, Rn, l, tau, T, alpha):
+def dnfsom_activity(n, Rn, rf_size, tau, T, alpha):
     """ It returns the activity of the neural field over a set of stimuli.
 
     ** Parameters **
@@ -90,7 +90,7 @@ def dnfsom_activity(n, Rn, l, tau, T, alpha):
     Rn : int
         Size of receptors grid
 
-    l : int
+    rf_size : int
         Size of receptive fields
 
     tau : double
@@ -106,16 +106,16 @@ def dnfsom_activity(n, Rn, l, tau, T, alpha):
     dt = 100.0 * ms     # Euler's time step
 
     # Files to be loaded
-    filename = 'weights.npy'
-    filenames = 'model_response_64'
+    filename = './data/weights.npy'
+    filenames = './data/model_response_64'
 
     # Allocation of arrays and loading necessary files
-    O = np.zeros((l*n, l*n))
+    max_response = np.zeros((rf_size*n, rf_size*n))
     W = np.load(filename)
     V = np.random.random((n, n)) * .01
     U = np.random.random((n, n)) * .01
-    Rx = np.load('gridxcoord.npy')
-    Ry = np.load('gridycoord.npy')
+    Rx = np.load('./data/gridxcoord.npy')
+    Ry = np.load('./data/gridycoord.npy')
 
     # FFT implementation
     mean = 0.5
@@ -131,38 +131,39 @@ def dnfsom_activity(n, Rn, l, tau, T, alpha):
     Wi_fft = rfft2(ifftshift(Wi[::-1, ::-1]))
 
     # Stimuli generation
-    S = np.zeros((l*l, 2))
-    for i, x in enumerate(np.linspace(0.0, 1.0, l)):
-        for j, y in enumerate(np.linspace(0.0, 1.0, l)):
-            S[i*l+j, 0] = x
-            S[i*l+j, 1] = y
-        dX = np.abs(Rx.reshape(1, Rn*Rn) - S[:, 0].reshape(l*l, 1))
+    S = np.zeros((rf_size*rf_size, 2))
+    for i, x in enumerate(np.linspace(0.0, 1.0, rf_size)):
+        for j, y in enumerate(np.linspace(0.0, 1.0, rf_size)):
+            S[i*rf_size+j, 0] = x
+            S[i*rf_size+j, 1] = y
+        dX = np.abs(Rx.reshape(1, Rn*Rn) - S[:, 0].reshape(rf_size*rf_size, 1))
         dX = np.minimum(dX, 1-dX)
-        dY = np.abs(Ry.reshape(1, Rn*Rn) - S[:, 1].reshape(l*l, 1))
+        dY = np.abs(Ry.reshape(1, Rn*Rn) - S[:, 1].reshape(rf_size*rf_size, 1))
         dY = np.minimum(dY, 1-dY)
         samples = np.sqrt(dX*dX+dY*dY)/mt.sqrt(2.0)
         samples = g(samples, 0.08)
 
     # Calculation of model response
     step = 0
-    jj = 100.0/(float(l))
-    for i in range(l):
-        for j in range(l):
-            D = ((np.abs(W - samples[i*l+j])).sum(axis=-1))/float(Rn*Rn)
-            I = (1.0 - D.reshape(n, n)) * alpha
+    jj = 100.0/(float(rf_size))
+    for i in range(rf_size):
+        for j in range(rf_size):
+            D = ((np.abs(W - samples[i*rf_size+j])).sum(axis=-1))/float(Rn*Rn)
+            In = (1.0 - D.reshape(n, n)) * alpha
             for k in range(int(T/dt)):
                 V = np.maximum(U, 0.0)
                 Z = rfft2(V)
                 Le = irfft2(Z * We_fft, (n, n)).real
                 Li = irfft2(Z * Wi_fft, (n, n)).real
-                U += (-U + (Le - Li) + I) / tau * dt
-            O[i*n:(i+1)*n, j*n:(j+1)*n] = np.maximum(U, 0.0)
+                U += (-U + (Le - Li) + In) / tau * dt
+            max_response[i*n:(i+1)*n, j*n:(j+1)*n] = np.maximum(U, 0.0)
             V = np.random.random((n, n)) * .01
             U = np.random.random((n, n)) * .01
         step += jj
         progress_bar(30, step)
 
-    np.save(filenames, O)
+    np.save(filenames, max_response)
+
 
 if __name__ == '__main__':
     np.random.seed(137)
