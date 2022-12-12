@@ -20,8 +20,15 @@ resolution of 64 pixels (*model_response_64*) are included in this repository
 in the directory *data/*.
 
 
+### How to run
+```bash
+$ python3 src/DNF-2D-SOM-REF.py X         # X is the number of the experiment
+$ python3 src/DNF-2D-REF-Response.py X
+$ python3 src/DNF-RF-Size.py X
+```
+
 ### Dependencies
-  - Numpy
+  - Numpy (1.23.4)
   - Matplotlib
 
 
