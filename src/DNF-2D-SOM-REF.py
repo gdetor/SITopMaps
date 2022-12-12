@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright (c) 2010-2014, Georgios Is. Detorakis (gdetor@gmail.com)
+# Copyright (c) 2010-2022, Georgios Is. Detorakis (gdetor@gmail.com)
 #                          Nicolas P. Rougier (nicolas.rougier@inria.fr)
 # All rights reserved.
 #
@@ -27,14 +27,22 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
+import sys
 import math as mt
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rc
 from numpy.fft import rfft2, irfft2, ifftshift
 
+from numpy.random import default_rng
+
 rc('text', usetex=True)
 rc('font', family='serif')
+
+num = sys.argv[1]
+
+
+rng = default_rng()
 
 
 def grid(n, xmin=0.0, xmax=1.0, ymin=0.0, ymax=1.0, noise=0.0):
@@ -56,9 +64,11 @@ def grid(n, xmin=0.0, xmax=1.0, ymin=0.0, ymax=1.0, noise=0.0):
     x = np.linspace(xmin, xmax, n, endpoint=False)
     y = np.linspace(ymin, ymax, n, endpoint=False)
     X, Y = np.meshgrid(x, y)
-    X += np.random.uniform(-noise, noise, (n, n))
+    # X += np.random.uniform(-noise, noise, (n, n))
+    X += rng.uniform(-noise, noise, (n, n))
     X = np.mod(X+1, 1)
-    Y += np.random.uniform(-noise, noise, (n, n))
+    # Y += np.random.uniform(-noise, noise, (n, n))
+    Y += rng.uniform(-noise, noise, (n, n))
     Y = np.mod(Y+1, 1)
     return X.ravel(), Y.ravel()
 
@@ -91,18 +101,19 @@ def plot_activity(data):
 
 
 if __name__ == '__main__':
-    np.random.seed(137)
+    # np.random.seed(137)
 
     # Parameters
     # --------------------------------------------
     Rn = 16         # Receptors count (Rn x Rn)
-    R_noise = 0.05  # Receptors placement noise
+    R_noise = 0.02  # Receptors placement noise
     n = 32          # Neural field size (n x n)
 
     T = 10.0        # 90.0 No of Euler's time discretization
     ms = 0.001
     dt = 100.0 * ms
-    lrate = 0.03    # 0.005 Learning rate
+    # lrate = 0.1    # 0.005 Learning rate
+    lrate = 0.1     # 0.005 Learning rate
     alpha = 0.1     # Time constant
     tau = 1.00      # Synapse temporal decay
     epochs = 35000  # Number of training epochs
@@ -115,10 +126,14 @@ if __name__ == '__main__':
 
     # Neural field setup
     # --------------------------------------------
-    U = np.random.uniform(0.00, 0.01, (n, n))
-    V = np.random.uniform(0.00, 0.01, (n, n))
+    # U = np.random.uniform(0.00, 0.01, (n, n))
+    # V = np.random.uniform(0.00, 0.01, (n, n))
+    U = rng.uniform(0.00, 0.01, (n, n))
+    V = rng.uniform(0.00, 0.01, (n, n))
 
-    W = np.random.uniform(W_min, W_max, (n*n, Rn*Rn))
+    # W = np.random.uniform(W_min, W_max, (n*n, Rn*Rn))
+    W = rng.uniform(W_min, W_max, (n*n, Rn*Rn))
+    np.save("./data/init_weights"+num, W)
 
     # FFT implementation
     # --------------------------------------------
@@ -133,17 +148,26 @@ if __name__ == '__main__':
     We_fft = rfft2(ifftshift(We[::-1, ::-1]))
     Wi_fft = rfft2(ifftshift(Wi[::-1, ::-1]))
 
+    res = (We - Wi) * 0.5
+    plt.plot(np.maximum(res, 0.0))
+    plt.show()
+
     # Skin Receptors setup
     # --------------------------------------------
     R = np.zeros((Rn*Rn, 2))
     R[:, 0], R[:, 1] = grid(Rn, noise=R_noise)
-    np.save('./data/gridxcoord', R[:, 0])
-    np.save('./data/gridycoord', R[:, 1])
+    np.save('./data/gridxcoord'+num, R[:, 0])
+    np.save('./data/gridycoord'+num, R[:, 1])
 
     # Samples generation
     # --------------------------------------------
     size = epochs
-    S = np.random.uniform(0, 1, (size, 2))
+    sx = rng.choice(np.random.uniform(0, 1, 2*size), size, replace=False)
+    sy = rng.choice(np.random.uniform(0, 1, 2*size), size, replace=False)
+    S = np.empty((size, 2))
+    S[:, 0] = sx
+    S[:, 1] = sy
+    # S = np.random.uniform(0, 1, (size, 2))
     dX = np.abs(R[:, 0].reshape(1, Rn*Rn) - S[:, 0].reshape(size, 1))
     dX = np.minimum(dX, 1-dX)
     dY = np.abs(R[:, 1].reshape(1, Rn*Rn) - S[:, 1].reshape(size, 1))
@@ -151,16 +175,22 @@ if __name__ == '__main__':
     samples = np.sqrt(dX*dX+dY*dY)/mt.sqrt(2.0)
     samples = g(samples, 0.08)
 
+    np.save("./data/samples"+num, samples)
+
     # Actual training
     # --------------------------------------------
     # plt.ion()
+    out = np.zeros((epochs, 4))
     for e in range(epochs):
+        out[e, 2] = np.linalg.norm(W)
         # Pick a sample
         stimulus = samples[e]
 
         # Computes field input accordingly
         D = ((np.abs(W - stimulus)).sum(axis=-1))/float(Rn*Rn)
         Input = (1.0 - D.reshape(n, n)) * alpha
+
+        # out[e, 3] = np.linalg.norm(Input)
 
         # Field simulation until convergence
         for _ in range(int(T/dt)):
@@ -170,6 +200,8 @@ if __name__ == '__main__':
             Li = irfft2(Z * Wi_fft, (n, n)).real
             U += (-U + (Le - Li) + Input) / tau * dt
 
+        out[e, 0] = V.max()
+        out[e, 1] = Le.max()
         # plot_activity(V)
 
         # Learning
@@ -181,10 +213,13 @@ if __name__ == '__main__':
 
         # Field activity reset
         # --------------------
-        U = np.random.uniform(0.00, 0.01, (n, n))
-        V = np.random.uniform(0.00, 0.01, (n, n))
+        # U = np.random.uniform(0.00, 0.01, (n, n))
+        # V = np.random.uniform(0.00, 0.01, (n, n))
+        U = rng.uniform(0.00, 0.01, (n, n))
+        V = rng.uniform(0.00, 0.01, (n, n))
 
-    np.save('./data/weights', W)
+    np.save("./data/stats"+num, out)
+    np.save('./data/weights'+num, W)
 
     m = Rn
     plt.figure(figsize=(10, 10))

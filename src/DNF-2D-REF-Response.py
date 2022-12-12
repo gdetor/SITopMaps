@@ -32,6 +32,9 @@ import math as mt
 import numpy as np
 from sys import stdout
 from numpy.fft import rfft2, irfft2, ifftshift
+import sys
+
+num = sys.argv[1]
 
 
 def progress_bar(width, percent):
@@ -106,16 +109,16 @@ def dnfsom_activity(n, Rn, rf_size, tau, T, alpha):
     dt = 100.0 * ms     # Euler's time step
 
     # Files to be loaded
-    filename = './data/weights.npy'
-    filenames = './data/model_response_64'
+    filename = './data/weights'+num+'.npy'
+    filenames = './data/model_response_64'+num
 
     # Allocation of arrays and loading necessary files
     max_response = np.zeros((rf_size*n, rf_size*n))
     W = np.load(filename)
     V = np.random.random((n, n)) * .01
     U = np.random.random((n, n)) * .01
-    Rx = np.load('./data/gridxcoord.npy')
-    Ry = np.load('./data/gridycoord.npy')
+    Rx = np.load('./data/gridxcoord'+num+'.npy')
+    Ry = np.load('./data/gridycoord'+num+'.npy')
 
     # FFT implementation
     mean = 0.5
@@ -166,7 +169,7 @@ def dnfsom_activity(n, Rn, rf_size, tau, T, alpha):
 
 
 if __name__ == '__main__':
-    np.random.seed(137)
+    # np.random.seed(137)
     model_size = 32
     rf_resolution = 64
     num_receptors = 16

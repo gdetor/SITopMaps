@@ -113,12 +113,15 @@ def plot_rfs(size, C, Rx, Ry):
 
 
 if __name__ == '__main__':
+    import sys
+    num = sys.argv[1]
+
     net_size = 32
     resolution = 64
 
-    Rx = np.load('./data/gridxcoord.npy')
-    Ry = np.load('./data/gridycoord.npy')
-    response = np.load('./data/model_response_64.npy')
+    Rx = np.load('./data/gridxcoord'+num+'.npy')
+    Ry = np.load('./data/gridycoord'+num+'.npy')
+    response = np.load('./data/model_response_64'+num+'.npy')
     C, R, size = rf_size(response, net_size, resolution)
 
     print(sum(np.isnan(C[..., 0])))
