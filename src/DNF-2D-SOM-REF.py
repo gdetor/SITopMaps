@@ -101,6 +101,8 @@ def plot_activity(data):
 
 
 if __name__ == '__main__':
+    # In case you'd like to reproduce the results of the original paper
+    # uncomment the following line
     # np.random.seed(137)
 
     # Parameters
